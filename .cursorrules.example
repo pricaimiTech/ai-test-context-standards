@@ -1,0 +1,62 @@
+# Cursor AI Rules - Example
+
+This is an example of what will be generated when users run the CLI.
+
+## Instructions
+
+Read and follow the standards defined in the `.ai/` directory.
+
+## Priority Order
+
+1. **Custom rules first**: Check `.ai/custom/` for project-specific customizations
+2. **Standards**: Then consult `.ai/standards/` for coding standards and architecture patterns
+3. **Test patterns**: Use `.ai/test-patterns/` when generating tests
+4. **Heuristics**: Apply `.ai/heuristics/` to guide testing decisions
+
+## When Generating Code
+
+- Follow naming conventions from `.ai/standards/coding-standards.md`
+- Apply architectural patterns from `.ai/standards/architecture-patterns.md`
+- Use best practices from `.ai/standards/best-practices.md`
+- Maintain consistency with existing codebase
+
+## When Generating Tests
+
+- Follow the appropriate test pattern from `.ai/test-patterns/`
+  - `unit.md` for unit tests
+  - `integration.md` for integration tests
+  - `e2e.md` for end-to-end tests
+  - `api.md` for API tests
+  - `performance.md` for performance tests
+- Apply QA heuristics from `.ai/heuristics/qa-heuristics.md`
+- Use AAA pattern (Arrange-Act-Assert)
+- Include happy path, edge cases, and error cases
+- Aim for meaningful test coverage
+
+## Code Quality
+
+- Write clean, maintainable code
+- Use TypeScript for type safety
+- Handle errors appropriately
+- Write self-documenting code
+- Add comments only when necessary to explain "why", not "what"
+
+## Security
+
+- Validate all inputs
+- Never expose secrets in code
+- Use environment variables for configuration
+- Sanitize user data
+- Follow OWASP guidelines
+
+## Performance
+
+- Optimize for readability first, performance second
+- Use memoization when appropriate
+- Lazy load heavy components
+- Implement proper caching strategies
+
+---
+
+**Remember**: These rules are guidelines. Always consider the specific context and requirements of the task at hand.
+

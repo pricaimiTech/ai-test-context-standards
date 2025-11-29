@@ -1,0 +1,41 @@
+# Source files (only ship dist/)
+bin/
+src/
+*.ts
+!*.d.ts
+
+# Tests
+**/*.test.js
+**/*.test.ts
+**/*.spec.js
+**/*.spec.ts
+
+# Development files
+.cursorrules.example
+tsconfig.json
+.editorconfig
+
+# Documentation (keep only essential)
+CONTRIBUTING.md
+USAGE.md
+CHANGELOG.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+coverage/
+.nyc_output/
+*.log
+.env
+.env.local
+auth-state.json
+
