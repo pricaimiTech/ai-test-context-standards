@@ -3,18 +3,19 @@
 [![npm version](https://img.shields.io/npm/v/ai-test-context-standards.svg)](https://www.npmjs.com/package/ai-test-context-standards)
 [![License](https://img.shields.io/npm/l/ai-test-context-standards.svg)](https://github.com/qajonatasmartins/ai-test-context-standards/blob/main/LICENSE)
 
-Uma CLI que injeta padrões de QA otimizados e contexto de testes para guiar IAs (Cursor, Claude, GitHub Copilot, Gemini) na geração de código de qualidade.
+🧪 **Framework de testes com IA que usa heurísticas, técnicas e comandos slash para guiar IAs na criação de testes de qualidade.**
 
-A CLI that injects optimized QA patterns and test context to guide AIs (Cursor, Claude, GitHub Copilot, Gemini) in generating quality code.
+CLI que injeta heurísticas de QA, técnicas de teste e sistema de comandos slash para IAs (Cursor, Claude, GitHub Copilot) gerarem testes seguindo as melhores práticas.
 
 ## ✨ Features
 
-- 🌍 **Multi-idioma**: Português, English, Español
-- 🎯 **Padrões de desenvolvimento**: Convenções, arquitetura, melhores práticas
-- 🧪 **Padrões de teste**: Unit, Integration, E2E, API, Performance
-- 🎲 **Heurísticas de QA**: Técnicas e estratégias de teste
+- ⚡ **Comandos Slash**: Sistema tipo BMAD - `/heuristica crud`, `/tecnica state-transition`
+- 🎯 **Heurísticas Separadas**: Cada heurística em arquivo próprio (SFDIPOT, CRUD, 0-1-Many, etc)
+- 🧪 **Padrões de Teste**: Unit, Integration, E2E, API (focado 100% em testes)
+- 🎲 **Técnicas de Teste**: State Transition, Pairwise, Exploratory
 - 🤖 **Compatível com IAs**: Cursor, Claude, Copilot, Gemini
-- 🔧 **Customizável**: Sobrescreva padrões conforme necessário
+- 🌍 **Multi-idioma**: Português, English, Español
+- 🔧 **Customizável**: Adicione suas próprias heurísticas
 - 📦 **Zero config**: Funciona out-of-the-box
 
 ## 🚀 Quickstart
