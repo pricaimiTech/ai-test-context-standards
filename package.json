@@ -1,0 +1,29 @@
+{
+  "name": "ai-test-context-standards",
+  "version": "1.0.0",
+  "description": "A CLI that injects optimized QA patterns and test context to guide AIs in generating automated tests.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qajonatasmartins/ai-test-context-standards.git"
+  },
+  "keywords": [
+    "qa-automation",
+    "typescript",
+    "prompt-engineering",
+    "ai-context",
+    "testing-standards",
+    "software-quality",
+    "scaffolding",
+    "llm-ops"
+  ],
+  "author": "qajonatasmartins",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/qajonatasmartins/ai-test-context-standards/issues"
+  },
+  "homepage": "https://github.com/qajonatasmartins/ai-test-context-standards#readme"
+}
