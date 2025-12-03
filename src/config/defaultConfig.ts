@@ -3,7 +3,7 @@ dotenv.config();
 
 export interface QAConfig {
   ai: {
-    provider: 'openai'; 
+    provider: 'openai';
     model: string;
     apiKey?: string;
     temperature: number;
@@ -33,10 +33,10 @@ const config: QAConfig = {
   standards: {
     source: 'github',
     owner: 'qajonatasmartins',
-    repo: process.env.STANDARDS_REPO || 'ai-test-context-standards',
-    branch: 'main', 
+    repo: process.env.STANDARDS_REPO || 'qa.teste-de-software.MARKDOWN',
+    branch: 'main',
     paths: {
-      heuristics: process.env.HEURISTICAS_PATH || '05-ESPECIALIDADES/agentTesting/heuristicas/',
+      heuristics: process.env.HEURISTICAS_PATH || '05-ESPECIALIDADES/agentTesting/heuristicas',
     },
     githubToken: process.env.GITHUB_TOKEN,
   },

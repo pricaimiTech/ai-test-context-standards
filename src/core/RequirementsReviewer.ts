@@ -3,182 +3,211 @@ import { AIProvider } from './ai/interfaces.js';
 import chalk from 'chalk';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
+/**
+ * @description Classe para analisar o PRD e gerar perguntas para o time de desenvolvimento
+ * @param loader - O loader de heurísticas
+ * @param ai - O provider de IA
+ * @returns O relatório de análise e as perguntas geradas
+ */
 export class RequirementsReviewer {
-    constructor(
-        private loader: GithubLoader,
-        private ai: AIProvider
-    ) { }
+  constructor(
+    private loader: GithubLoader,
+    private ai: AIProvider
+  ) {}
 
-    /**
-     * Executa a análise crítica do PRD usando ferramentas remotas ou locais
-     */
-    async review(prdContent: string, outputDir: string) {
-        console.log(chalk.blue('🕵️  Iniciando Análise Crítica do PRD...'));
+  async review(prdContent: string, outputDir: string, figmaUrl?: string) {
+    console.log(chalk.blue('🕵️  Iniciando Análise de Refinamento (360º)...'));
 
-        let tools: any[] = [];
+    let tools: any[] = [];
+    
+    /**@step 1 - Carrega o manifesto de heurísticas disponíveis no repositório remoto ou local */
+    try {
+        const manifest = await this.loader.loadManifest();
+        tools = manifest.filter((t: any) => t.type === 'review');
+    } catch (e) {
+        console.log(chalk.yellow('   ⚠️  Sem manifesto remoto.'));
+    }
 
-        // ---------------------------------------------------------
-        // 1. TENTATIVA DE CARREGAR O MANIFESTO (CLOUD -> LOCAL)
-        // ---------------------------------------------------------
-        try {
-            console.log(chalk.gray('   📡 Buscando lista de ferramentas no GitHub...'));
-            const manifest = await this.loader.loadManifest();
-            // Filtra apenas ferramentas do tipo "review"
-            tools = manifest.filter((t: any) => t.type === 'review');
+    if (tools.length === 0) {
+      tools.push({ id: 'prd-analysis', name: 'Review Padrão (Local)', type: 'review', isLocal: true });
+    }
 
-            if (tools.length > 0) {
-                console.log(chalk.dim(`      Ferramentas encontradas: ${tools.map(t => t.name).join(', ')}`));
-            }
-        } catch (e: any) {
-            console.log(chalk.yellow(`   ⚠️  Falha ao conectar no GitHub (${e.message}).`));
-            console.log(chalk.gray('   🔄 Alternando para modo OFFLINE (Fallback Local)...'));
-        }
+    /**@step 2 - Seleciona as heurísticas baseadas no contexto do Figma ou do PRD */
+    let selectedTools: any[] = [];
+    const contextInfo = figmaUrl 
+      ? `O usuário FORNECEU um link do Figma (${figmaUrl}). VALIDE Visual vs Texto.`
+      : `O usuário NÃO forneceu design. Focar na lógica e regras.`;
 
-        // Se falhou o download ou o manifesto não tem tools de review, usa o Default Local
-        if (tools.length === 0) {
-            tools.push({
-                id: 'prd-analysis',
-                name: 'Análise de Gaps e Riscos (Local)',
-                type: 'review'
-            });
-        }
+    /**@step 3 - Seleciona a melhor heurística para analisar o PRD */
+    if (tools.length > 0) {
+      console.log(chalk.gray(`   🧠 Selecionando lentes de análise...`));
+      
+      const selectionPrompt = `
+        Você é um QA Lead moderando um Refinamento.
+        CONTEXTO: ${contextInfo}
+        PRD PREVIEW: ${prdContent.substring(0, 500)}...
+        FERRAMENTAS:
+        ${tools.map(t => `- ID: ${t.id} | Nome: ${t.name}`).join('\n')}
+        
+        TAREFA: Escolha a MELHOR ferramenta para este caso. 
+        Se necessário, escolha no máximo 2, mas apenas se tiverem focos muito diferentes (ex: Técnica vs Negócio).
+        Evite redundância.
+        
+        Retorne JSON: { "ids": ["id_escolhido"] }
+      `;
 
-        // Garante que a pasta de saída existe
-        await fs.mkdir(outputDir, { recursive: true });
+      try {
+        const decision = await this.ai.generate(
+            selectionPrompt, 
+            "Selecione as ferramentas com base na lógica.", 
+            { jsonMode: true, temperature: 0 } 
+        );
+        
+        /**@step 4 - Obtém a escolha da IA */
+        const choice = JSON.parse(decision.content);
+        selectedTools = tools.filter((t: any) => choice.ids.includes(t.id));
+        if (selectedTools.length === 0) selectedTools = [tools[0]];
+        
+        console.log(chalk.cyan(`   🎯 Heurísticas Selecionadas:`));
+        selectedTools.forEach(t => console.log(chalk.cyan(`      - ${t.name}`)));
 
-        // ---------------------------------------------------------
-        // 2. ITERAÇÃO SOBRE AS FERRAMENTAS
-        // ---------------------------------------------------------
-        for (const tool of tools) {
-            console.log(chalk.magenta(`   🧠 Analista Ativo: ${tool.name}`));
+      } catch (e) {
+        selectedTools = tools;
+      }
+    }
 
-            let heuristicContent = '';
+    await fs.mkdir(outputDir, { recursive: true });
 
-            try {
-                // TENTA BAIXAR O CONTEÚDO REMOTO
-                // (Só tenta se viemos de um manifesto remoto, senão vai direto pro local)
-                // O loader já lança erro se não achar
-                heuristicContent = await this.loader.load('heuristics', tool.id);
-                console.log(chalk.dim('      ☁️  Usando definição remota (GitHub)'));
+    /**@step 4 - Executa as heurísticas selecionadas */
+    for (const tool of selectedTools) {
+      console.log(chalk.magenta(`\n   🚀 Aplicando: ${tool.name}`));
+      
+      try {
+        let heuristicContent = await this.resolveHeuristicContent(tool);
 
-            } catch (error) {
-                // SE FALHAR (Erro 404 ou Network Error), TENTA LOCAL
-                console.log(chalk.yellow('      ⚠️  Definição remota indisponível. Buscando arquivo local...'));
-
-                try {
-                    heuristicContent = await this.loadLocalHeuristic(tool.id);
-                    console.log(chalk.dim('      💾 Usando definição local (Built-in)'));
-                } catch (localError) {
-                    console.error(chalk.red(`      ❌ Falha crítica: Heurística '${tool.id}' não encontrada nem no GitHub nem localmente.`));
-                    console.error(chalk.dim(`         Verifique se o arquivo src/heuristics/${tool.id}.md existe.`));
-                    continue; // Pula para a próxima ferramenta sem quebrar o processo
-                }
-            }
-
-            // ---------------------------------------------------------
-            // 3. EXECUÇÃO DA IA
-            // ---------------------------------------------------------
-            try {
-                const systemPrompt = `
-          ATUE COMO UM PRODUCT MANAGER TÉCNICO E ARQUITETO DE SOFTWARE.
+        const systemPrompt = `
+          ATUE COMO UM QA LEAD EM REFINAMENTO TÉCNICO.
           
-          --- SEU GUIA DE ANÁLISE ---
+          --- FERRAMENTA (${tool.name}) ---
           ${heuristicContent}
           
+          --- CONTEXTO EXTRA ---
+          ${figmaUrl ? `Figma: ${figmaUrl}` : 'Apenas texto.'}
+
           --- TAREFA ---
-          Analise o PRD fornecido procurando falhas, riscos, ambiguidades e gaps.
-          Seja crítico, direto e técnico.
+          Analise o PRD e gere questionamentos RELEVANTES.
+          Se a documentação estiver perfeita sob esta ótica, retorne listas vazias.
           
-          RETORNE APENAS JSON.
+          --- SAÍDA JSON ---
+          {
+            "summary": "Parecer geral",
+            "gaps": [{ "topic": "Item", "description": "O que falta?", "impact": "High/Medium/Low" }],
+            "risks": [{ "category": "Tech/Biz", "description": "Detalhe", "mitigation": "Sugestão" }],
+            "questions": ["Pergunta 1", "Pergunta 2"]
+          }
         `;
 
-                const response = await this.ai.generate(systemPrompt, prdContent, true);
+        const response = await this.ai.generate(systemPrompt, prdContent, true);
+        const report = JSON.parse(response.content);
+        
+        /**@step 5 - Filtra os resultados relevantes */
+        const hasGaps = report.gaps && report.gaps.length > 0;
+        const hasRisks = report.risks && report.risks.length > 0;
+        const hasQuestions = report.questions && report.questions.length > 0;
 
-                // Parse seguro do JSON
-                let report;
-                try {
-                    report = JSON.parse(response.content);
-                } catch (parseError) {
-                    throw new Error('A IA não retornou um JSON válido.');
-                }
-
-                // Formata para Markdown (Leitura Humana)
-                const reportMD = this.formatReportToMarkdown(report, tool.name);
-
-                // Salva o arquivo
-                const filePath = path.join(outputDir, `review_${tool.id}.md`);
-                await fs.writeFile(filePath, reportMD);
-
-                console.log(chalk.green(`      ✅ Relatório salvo em: ${filePath}`));
-
-            } catch (aiError: any) {
-                console.error(chalk.red(`      ❌ Erro na geração da IA: ${aiError.message}`));
-            }
-        }
-    }
-
-    /**
-     * @description Helper robusto para encontrar arquivos locais
-     * @param id - O ID da heurística
-     * @returns O conteúdo da heurística
-     */
-    private async loadLocalHeuristic(id: string): Promise<string> {
-
-        const possiblePaths = [
-            // Tentativa 1: Caminho relativo padrão da lib compilada (dist)
-            path.resolve(process.cwd(), 'dist/heuristics', `${id}.md`),
-            // Tentativa 2: Caminho relativo padrão de desenvolvimento (src)
-            path.resolve(process.cwd(), 'src/heuristics', `${id}.md`),
-            // Tentativa 3: Caminho dentro de node_modules (se instalada como dep)
-            path.resolve(process.cwd(), 'node_modules/qa-ai-lib/dist/heuristics', `${id}.md`)
-        ];
-
-        for (const p of possiblePaths) {
-            try {
-                await fs.access(p);
-                return await fs.readFile(p, 'utf-8');
-            } catch {
-                continue;
-            }
+        if (!hasGaps && !hasRisks && !hasQuestions) {
+            console.log(chalk.yellow(`      ⚠️  Relatório vazio gerado por ${tool.name}.`));
+            console.log(chalk.dim(`          A IA não encontrou problemas relevantes com esta lente. Arquivo descartado.`));
+            continue; /**@step 6 - Pula para a próxima heurística */
         }
 
-        // Se falhar tudo, lança erro detalhado
-        throw new Error(`Heurística local '${id}.md' não encontrada. Verifique se o arquivo existe em src/heuristics.`);
+        /**@step 7 - Formata o relatório em markdown */
+        const reportMD = this.formatReportToMarkdown(report, tool.name);
+        const filePath = path.join(outputDir, `refinement_${tool.id}.md`);
+        await fs.writeFile(filePath, reportMD);
+        /**@step 8 - Salva o relatório em um arquivo */
+        console.log(chalk.green(`      ✅ Relatório salvo em: ${filePath}`));
+
+      } catch (error: any) {
+        console.error(chalk.red(`      ❌ Erro: ${error.message}`));
+      }
     }
+  }
 
-    /**
-     * @description Converte o JSON cru da IA em um Markdown bonito
-     * @param json - O JSON da IA
-     * @param toolName - O nome da ferramenta
-     * @returns O Markdown bonito
-     */
-    private formatReportToMarkdown(json: any, toolName: string): string {
-        const gaps = json.gaps?.length
-            ? json.gaps.map((g: any) => `- **${g.topic}** (${g.impact || 'Medium'}): ${g.description}`).join('\n')
-            : '_Nenhum gap crítico identificado._';
+  /**@helper - Carrega o conteúdo da heurística */
 
-        const risks = json.risks?.length
-            ? json.risks.map((r: any) => `- [${r.category || 'General'}] **${r.description}**\n  *Mitigação:* ${r.mitigation}`).join('\n')
-            : '_Nenhum risco evidente._';
+  private async resolveHeuristicContent(tool: any): Promise<string> {
+    if (tool.isLocal) return this.loadLocalHeuristic(tool.id);
+    try { return await this.loader.load('heuristics', tool.id); } 
+    catch { return this.loadLocalHeuristic(tool.id); }
+  }
 
-        const questions = json.questions?.length
-            ? json.questions.map((q: string) => `- [ ] ${q}`).join('\n')
-            : '_Nenhuma dúvida gerada._';
+  /**@helper - Carrega a heurística local */
+  private async loadLocalHeuristic(id: string): Promise<string> {
+    // Solução robusta sem import.meta
+    const possiblePaths = [
+        path.resolve(process.cwd(), 'dist/heuristics', `${id}.md`),
+        path.resolve(process.cwd(), 'src/heuristics', `${id}.md`),
+        path.resolve(process.cwd(), 'node_modules/qa-ai-lib/dist/heuristics', `${id}.md`)
+    ];
+    for (const p of possiblePaths) {
+        try { await fs.access(p); return await fs.readFile(p, 'utf-8'); } catch { continue; }
+    }
+    throw new Error(`Heurística local '${id}.md' não encontrada.`);
+  }
 
-        return `
-# Relatório de Análise: ${toolName}
-> **Nota de Qualidade do Documento:** ${json.summary || 'N/A'}
+  /**@helper - Formata o relatório em markdown */
+  private formatReportToMarkdown(json: any, toolName: string): string {
+    const date = new Date().toLocaleDateString('pt-BR');
 
-## 🚨 Gaps e Lacunas (O que falta?)
-${gaps}
+    const questionsSection = json.questions?.length 
+      ? json.questions.map((q: string) => `- [ ] 🙋 **${q}**`).join('\n') 
+      : '> _Nenhuma dúvida levantada._';
 
-## ⚠️ Riscos Identificados
-${risks}
+    const gapsSection = json.gaps?.length 
+      ? json.gaps.map((g: any) => `### ${this.getImpactIcon(g.impact)} ${g.topic}\n**Impacto:** ${g.impact || 'Medium'}\n> ${g.description}`).join('\n\n') 
+      : '> _Nenhum gap crítico identificado._';
 
-## ❓ Questionamentos para o PO
-${questions}
+    const risksSection = json.risks?.length 
+        ? json.risks.map((r: any) => `- [${r.category || 'Risco'}] **${r.description}**\n  *Mitigação:* ${r.mitigation}`).join('\n') 
+        : '> _Nenhum risco evidente._';
+
+    return `
+# 🕵️ Relatório de Refinamento
+
+| **Lente de Análise** | **Data** | **Status** |
+| :--- | :--- | :--- |
+| ${toolName} | ${date} | 🚦 Em Análise |
+
+> 📝 **Veredito da IA:**
+> ${json.summary || 'Análise concluída.'}
+
+---
+
+## ❓ Questionamentos para o Time
+${questionsSection}
+
+---
+
+## 🚨 Pontos de Atenção (Gaps)
+${gapsSection}
+
+---
+
+## ⚠️ Riscos Mapeados
+${risksSection}
+
+---
+*Gerado automaticamente por **QA AI Agent** 🤖*
     `.trim();
-    }
+  }
+
+  /**@helper - Obtém o ícone de impacto */
+  private getImpactIcon(impact: string): string {
+    const i = impact?.toLowerCase() || '';
+    if (i.includes('high') || i.includes('critical')) return '🔴';
+    if (i.includes('medium')) return '🟡';
+    return '🔵';
+  }
 }

@@ -59,7 +59,6 @@ export class GithubLoader {
   async listHeuristics(): Promise<string[]> {
     const folder = this.config.paths.heuristics;
     const url = `${this.apiUrl}/${folder}?ref=${this.config.branch}`;
-    
     console.log(chalk.gray(`   📂 Listando heurísticas em: ${folder}...`));
 
     try {

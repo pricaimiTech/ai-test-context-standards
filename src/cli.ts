@@ -21,21 +21,23 @@ program
  * @description Comando para analisar o PRD procurando Gaps, Riscos e Ambiguidade e criar o relatório de análise
  * @param prdPath - O caminho para o arquivo de requisitos (PRD)
  * @param options - As opções para o comando
+ * @param output - O diretório de saída
+ * @param figmaUrl - A URL do protótipo Figma (Opcional)
  * @returns O relatório de análise
  */
 program.command('review')
-  .description('Fase 0: Analisa o PRD procurando Gaps, Riscos e Ambiguidade')
+  .description('Fase 0: Refinamento Técnico - Identifica Gaps e Riscos no PRD')
   .argument('<prdPath>', 'Caminho do PRD')
   .option('-o, --output <dir>', 'Diretório de saída', defaultConfig.output.baseDir)
+  .option('--figma <url>', 'URL do protótipo Figma (Opcional)')
   .action(async (prdPath, options) => {
     try {
-      console.log(chalk.blue(`🕵️  Inicializando Reviewer de Requisitos...`));
-      
+      console.log(chalk.blue(`🕵️  Inicializando Refinamento de Requisitos...`));
+
       const inputPath = path.resolve(process.cwd(), prdPath);
       const outputBase = path.resolve(process.cwd(), options.output);
       const reviewDir = path.join(outputBase, 'review');
 
-      // Validação
       try { await fs.access(inputPath); } catch { throw new Error(`PRD não encontrado: ${inputPath}`); }
 
       const ai = AIFactory.create(defaultConfig.ai);
@@ -44,9 +46,9 @@ program.command('review')
 
       const prdContent = await fs.readFile(inputPath, 'utf-8');
 
-      await reviewer.review(prdContent, reviewDir);
+      await reviewer.review(prdContent, reviewDir, options.figma);
 
-      console.log(chalk.white(`\n🏁 Review concluído! Verifique a pasta: ${chalk.underline(reviewDir)}`));
+      console.log(chalk.white(`\n🏁 Refinamento concluído! Perguntas salvas em: ${chalk.underline(reviewDir)}`));
 
     } catch (e: any) {
       console.error(chalk.red('❌ Erro no Review:'), e.message);
@@ -121,7 +123,7 @@ program.command('spec')
 
       let prdPath = options.prd || plan.meta?.sourcePrd;
       if (!prdPath) throw new Error('PRD não encontrado. Use --prd');
-      
+
       const prdContent = await fs.readFile(prdPath, 'utf-8');
 
       const ai = AIFactory.create(defaultConfig.ai);
@@ -142,11 +144,11 @@ program.command('spec')
  * @returns O resultado da verificação de conexão com o GitHub
  */
 program.command('check-connection').action(async () => {
-    const loader = new GithubLoader(defaultConfig.standards);
-    try { 
-        await loader.loadManifest(); 
-        console.log(chalk.green('✅ Conexão OK')); 
-    } catch(e:any) { console.log(chalk.red(e.message)); }
+  const loader = new GithubLoader(defaultConfig.standards);
+  try {
+    await loader.loadManifest();
+    console.log(chalk.green('✅ Conexão OK'));
+  } catch (e: any) { console.log(chalk.red(e.message)); }
 });
 
 /**
@@ -154,11 +156,11 @@ program.command('check-connection').action(async () => {
  * @returns O resultado do teste de conexão com a IA
  */
 program.command('test-ai').action(async () => {
-    const ai = AIFactory.create(defaultConfig.ai);
-    try { 
-        const res = await ai.generate("JSON", "Hi", true); 
-        console.log(chalk.green('✅ AI OK: ' + res.content)); 
-    } catch(e:any) { console.log(chalk.red(e.message)); }
+  const ai = AIFactory.create(defaultConfig.ai);
+  try {
+    const res = await ai.generate("JSON", "Hi", true);
+    console.log(chalk.green('✅ AI OK: ' + res.content));
+  } catch (e: any) { console.log(chalk.red(e.message)); }
 });
 
 program.parse(process.argv);
