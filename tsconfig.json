@@ -1,23 +1,28 @@
 {
+  "name": "qa-ai-lib",
+  "version": "1.0.0",
+  "type": "module",
   "compilerOptions": {
-    /* Configurações Básicas */
-    "target": "ES2020" /* Versão do JS gerado. ES2020 suporta features modernas do Node */,
-    "module": "commonjs" /* Padrão para CLIs em Node (garante compatibilidade com require/module.exports) */,
-    "lib": ["ES2020"] /* Bibliotecas incluídas na compilação */,
-    "outDir": "./dist" /* Onde os arquivos compilados .js vão ficar */,
-    "rootDir": "./bin" /* Onde seu código .ts está */,
-
-    /* Interoperabilidade e Módulos */
-    "esModuleInterop": true /* Permite importar módulos CommonJS como ES Modules (import fs from 'fs') */,
-    "resolveJsonModule": true /* Permite importar arquivos .json se precisar ler o package.json */,
-    "moduleResolution": "node",
-
-    /* Rigor e Qualidade (Seu perfil QA!) */
-    "strict": true /* Ativa todas as verificações estritas de tipo */,
-    "noImplicitAny": true /* Erro se algo não tiver tipo definido */,
-    "skipLibCheck": true /* Pula verificação de tipos nas definições de bibliotecas (acelera build) */,
+    "target": "ES2022", /* Alvo moderno para suportar async/await e features novas */
+    "module": "NodeNext", /* CRUCIAL: Habilita suporte nativo a ES Modules (import/export) */
+    "moduleResolution": "NodeNext",
+    /* Pastas */
+    "outDir": "./dist", /* Compila para a pasta dist */
+    "rootDir": "./src", /* Lê os arquivos da pasta src (Corrigido de bin) */
+    /* Interoperabilidade */
+    "esModuleInterop": true, /* Ajuda com pacotes legados */
+    "resolveJsonModule": true, /* Permite importar .json */
+    /* Qualidade de Código (Strict) */
+    "strict": true,
+    "noImplicitAny": true,
+    "skipLibCheck": true, /* Ignora checagem profunda em node_modules para buildar rápido */
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["bin/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ], /* Apenas arquivos dentro de src */
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
