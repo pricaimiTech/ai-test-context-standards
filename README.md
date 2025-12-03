@@ -168,6 +168,7 @@ ISC License - veja [LICENSE](LICENSE)
 ## 👨‍💻 Autor
 
 **Jônatas Martins** ([@qajonatasmartins](https://github.com/qajonatasmartins))
+**Priscila Caimi** ([@pricaimiTech](https://github.com/pricaimiTech))
 
 ## 🌟 Apoie o Projeto
 
