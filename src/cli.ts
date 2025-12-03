@@ -9,6 +9,7 @@ import { AIFactory } from './core/ai/factory.js';
 import { TestPlanner } from './core/TestPlanner.js';
 import { TestExecutor } from './core/TestExecutor.js';
 import { RequirementsReviewer } from './core/RequirementsReviewer.js';
+import { ScenarioGenerator } from './core/ScenarioGenerator.js';
 
 const program = new Command();
 
@@ -30,7 +31,7 @@ program.command('review')
   .action(async (prdPath, options) => {
     try {
       console.log(chalk.blue(`🕵️  Inicializando Reviewer de Requisitos...`));
-      
+
       const inputPath = path.resolve(process.cwd(), prdPath);
       const outputBase = path.resolve(process.cwd(), options.output);
       const reviewDir = path.join(outputBase, 'review');
@@ -57,12 +58,14 @@ program.command('review')
  * @description Comando para gerar o plano de teste
  * @param prdPath - O caminho para o arquivo de requisitos (PRD)
  * @param options - As opções para o comando
+ * @option --figma <url> - URL do protótipo Figma (Opcional)
  * @returns O plano de teste gerado
  */
 program.command('plan')
-  .description('Fase 1: Gera o Plano de Testes (Estratégia)')
+  .description('Fase 1: Gera Estratégia e Mapeia Cenários de Teste')
   .argument('<prdPath>', 'Caminho do PRD')
   .option('-o, --output <dir>', 'Diretório de saída', defaultConfig.output.baseDir)
+  .option('--figma <url>', 'URL do protótipo Figma (Opcional)')
   .action(async (prdPath, options) => {
     try {
       console.log(chalk.blue(`🧠 Inicializando Planejamento...`));
@@ -73,24 +76,33 @@ program.command('plan')
 
       await fs.mkdir(strategyDir, { recursive: true });
       try { await fs.access(inputPath); } catch { throw new Error(`PRD não encontrado: ${inputPath}`); }
+      const prdContent = await fs.readFile(inputPath, 'utf-8');
 
       const ai = AIFactory.create(defaultConfig.ai);
       const loader = new GithubLoader(defaultConfig.standards);
       const planner = new TestPlanner(loader, ai);
+      const scenarioGen = new ScenarioGenerator(ai);
 
-      const prdContent = await fs.readFile(inputPath, 'utf-8');
+      // 1. Gera Estratégia (Quais ferramentas usar?)
       const plan = await planner.createStrategy(prdContent);
 
-      const planWithMeta = {
-        meta: { createdAt: new Date().toISOString(), sourcePrd: inputPath },
-        ...plan
-      };
-
       const planPath = path.join(strategyDir, 'test-plan.json');
-      await fs.writeFile(planPath, JSON.stringify(planWithMeta, null, 2));
+      await fs.writeFile(planPath, JSON.stringify(plan, null, 2));
+      console.log(chalk.cyan(`   💾 Estratégia salva: ${planPath}`));
 
-      console.log(chalk.cyan(`\n📋 Estratégia Salva: ${planPath}`));
-      console.log(chalk.dim(`Próximo passo: npm run qa:spec -- "${planPath}"`));
+      // 2. Gera Cenários (Quais testes fazer?)
+      const scenarios = await scenarioGen.generateScenarios(
+        plan, 
+        prdContent, 
+        options.figma
+      );
+
+      const scenarioPath = path.join(strategyDir, 'test-scenarios.json');
+      await fs.writeFile(scenarioPath, JSON.stringify(scenarios, null, 2));
+      console.log(chalk.cyan(`   💾 Cenários salvos: ${scenarioPath}`));
+
+      console.log(chalk.dim(`\nPróximo passo: Revise os cenários e gere os specs:`));
+      console.log(chalk.green(`   npm run qa:spec -- "${planPath}"`));
 
     } catch (error: any) {
       console.error(chalk.red('❌ Erro no Planejamento:'), error.message);
@@ -121,7 +133,7 @@ program.command('spec')
 
       let prdPath = options.prd || plan.meta?.sourcePrd;
       if (!prdPath) throw new Error('PRD não encontrado. Use --prd');
-      
+
       const prdContent = await fs.readFile(prdPath, 'utf-8');
 
       const ai = AIFactory.create(defaultConfig.ai);
@@ -142,11 +154,11 @@ program.command('spec')
  * @returns O resultado da verificação de conexão com o GitHub
  */
 program.command('check-connection').action(async () => {
-    const loader = new GithubLoader(defaultConfig.standards);
-    try { 
-        await loader.loadManifest(); 
-        console.log(chalk.green('✅ Conexão OK')); 
-    } catch(e:any) { console.log(chalk.red(e.message)); }
+  const loader = new GithubLoader(defaultConfig.standards);
+  try {
+    await loader.loadManifest();
+    console.log(chalk.green('✅ Conexão OK'));
+  } catch (e: any) { console.log(chalk.red(e.message)); }
 });
 
 /**
@@ -154,11 +166,11 @@ program.command('check-connection').action(async () => {
  * @returns O resultado do teste de conexão com a IA
  */
 program.command('test-ai').action(async () => {
-    const ai = AIFactory.create(defaultConfig.ai);
-    try { 
-        const res = await ai.generate("JSON", "Hi", true); 
-        console.log(chalk.green('✅ AI OK: ' + res.content)); 
-    } catch(e:any) { console.log(chalk.red(e.message)); }
+  const ai = AIFactory.create(defaultConfig.ai);
+  try {
+    const res = await ai.generate("JSON", "Hi", true);
+    console.log(chalk.green('✅ AI OK: ' + res.content));
+  } catch (e: any) { console.log(chalk.red(e.message)); }
 });
 
 program.parse(process.argv);
